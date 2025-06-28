@@ -1,42 +1,152 @@
 
 import { useState } from "react";
-import { User, Trophy, Target, Calendar, Award, TrendingUp, BookOpen, Clock } from "lucide-react";
+import { User, Trophy, Target, Calendar, Award, TrendingUp, BookOpen, Clock, Edit2, Save, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useProfile } from "@/hooks/useProfile";
+import { useCourses } from "@/hooks/useCourses";
+import { useQuizResults } from "@/hooks/useQuizResults";
+import { useToast } from "@/hooks/use-toast";
 
 export const Profile = () => {
   const [activeTab, setActiveTab] = useState("overview");
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editName, setEditName] = useState("");
+  const { profile, updateProfile } = useProfile();
+  const { userProgress, courses } = useCourses();
+  const { quizResults } = useQuizResults();
+  const { toast } = useToast();
+
+  const handleEditProfile = () => {
+    setEditName(profile?.full_name || "");
+    setEditingProfile(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!editName.trim()) {
+      toast({
+        title: "Error",
+        description: "Name cannot be empty",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { error } = await updateProfile({ full_name: editName });
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: "Profile updated successfully"
+      });
+      setEditingProfile(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProfile(false);
+    setEditName("");
+  };
 
   const achievements = [
-    { icon: "🏆", title: "Math Master", description: "Completed 50 math quizzes", progress: 100 },
-    { icon: "⚡", title: "Speed Learner", description: "Fastest quiz completion", progress: 100 },
-    { icon: "🔥", title: "Streak Champion", description: "15-day learning streak", progress: 75 },
-    { icon: "🎯", title: "Accuracy Pro", description: "90% quiz accuracy", progress: 90 },
-    { icon: "📚", title: "Knowledge Seeker", description: "Watched 100 video lessons", progress: 60 },
-    { icon: "💎", title: "Premium Learner", description: "Complete 10 challenges", progress: 40 }
+    { 
+      icon: "🏆", 
+      title: "First Quiz", 
+      description: "Complete your first quiz", 
+      progress: quizResults.length > 0 ? 100 : 0,
+      earned: quizResults.length > 0
+    },
+    { 
+      icon: "⚡", 
+      title: "Speed Learner", 
+      description: "Complete 5 quizzes", 
+      progress: Math.min((quizResults.length / 5) * 100, 100),
+      earned: quizResults.length >= 5
+    },
+    { 
+      icon: "🔥", 
+      title: "Course Starter", 
+      description: "Start your first course", 
+      progress: userProgress.length > 0 ? 100 : 0,
+      earned: userProgress.length > 0
+    },
+    { 
+      icon: "🎯", 
+      title: "High Achiever", 
+      description: "Score 80%+ on a quiz", 
+      progress: quizResults.some(r => (r.score / r.total_questions) >= 0.8) ? 100 : 0,
+      earned: quizResults.some(r => (r.score / r.total_questions) >= 0.8)
+    },
+    { 
+      icon: "📚", 
+      title: "Knowledge Seeker", 
+      description: "Start 3 different courses", 
+      progress: Math.min((userProgress.length / 3) * 100, 100),
+      earned: userProgress.length >= 3
+    },
+    { 
+      icon: "💎", 
+      title: "Quiz Master", 
+      description: "Complete 10 quizzes", 
+      progress: Math.min((quizResults.length / 10) * 100, 100),
+      earned: quizResults.length >= 10
+    }
   ];
 
-  const subjects = [
-    { name: "Mathematics", level: 15, progress: 85, xp: 1250, color: "from-blue-500 to-blue-600" },
-    { name: "Physics", level: 12, progress: 70, xp: 980, color: "from-green-500 to-green-600" },
-    { name: "Chemistry", level: 18, progress: 92, xp: 1450, color: "from-purple-500 to-purple-600" },
-    { name: "Biology", level: 14, progress: 78, xp: 1120, color: "from-pink-500 to-pink-600" }
-  ];
+  const getSubjectProgress = () => {
+    const subjectMap = new Map();
+    
+    userProgress.forEach(progress => {
+      const course = courses.find(c => c.id === progress.course_id);
+      if (course) {
+        if (!subjectMap.has(course.subject)) {
+          subjectMap.set(course.subject, { total: 0, count: 0, courses: [] });
+        }
+        const subject = subjectMap.get(course.subject);
+        subject.total += progress.progress;
+        subject.count += 1;
+        subject.courses.push({ title: course.title, progress: progress.progress });
+      }
+    });
+
+    return Array.from(subjectMap.entries()).map(([subject, data]) => ({
+      name: subject,
+      progress: Math.round(data.total / data.count),
+      courses: data.courses.length
+    }));
+  };
 
   const stats = [
-    { label: "Total XP", value: "4,800", icon: TrendingUp, color: "text-purple-400" },
-    { label: "Classes Attended", value: "127", icon: BookOpen, color: "text-blue-400" },
-    { label: "Quiz Score", value: "89%", icon: Target, color: "text-green-400" },
-    { label: "Study Hours", value: "245h", icon: Clock, color: "text-yellow-400" }
+    { label: "Total XP", value: quizResults.length * 50, icon: TrendingUp, color: "text-purple-400" },
+    { label: "Courses Started", value: userProgress.length, icon: BookOpen, color: "text-blue-400" },
+    { label: "Quizzes Taken", value: quizResults.length, icon: Target, color: "text-green-400" },
+    { label: "Avg Quiz Score", value: quizResults.length > 0 ? `${Math.round(quizResults.reduce((sum, r) => sum + (r.score / r.total_questions * 100), 0) / quizResults.length)}%` : "0%", icon: Clock, color: "text-yellow-400" }
   ];
 
   const recentActivity = [
-    { action: "Completed", item: "Quadratic Equations Quiz", time: "2 hours ago", xp: "+50 XP" },
-    { action: "Attended", item: "Live Physics Class", time: "1 day ago", xp: "+25 XP" },
-    { action: "Achieved", item: "Math Master Badge", time: "2 days ago", xp: "+100 XP" },
-    { action: "Completed", item: "Chemistry Challenge", time: "3 days ago", xp: "+75 XP" }
+    ...quizResults.slice(0, 2).map(result => ({
+      action: "Completed",
+      item: `${result.quiz_name} Quiz`,
+      time: new Date(result.completed_at).toLocaleDateString(),
+      xp: "+50 XP"
+    })),
+    ...userProgress.slice(0, 2).map(progress => {
+      const course = courses.find(c => c.id === progress.course_id);
+      return {
+        action: "Started",
+        item: course?.title || "Course",
+        time: progress.last_accessed ? new Date(progress.last_accessed).toLocaleDateString() : "Recently",
+        xp: "+25 XP"
+      };
+    })
   ];
 
   return (
@@ -48,7 +158,7 @@ export const Profile = () => {
             {/* Avatar */}
             <div className="relative">
               <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-lg">
-                AK
+                {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="absolute -bottom-2 -right-2 bg-yellow-500 rounded-full p-2">
                 <Trophy className="h-6 w-6 text-white" />
@@ -57,13 +167,43 @@ export const Profile = () => {
 
             {/* Profile Info */}
             <div className="flex-1 text-center md:text-left">
-              <h2 className="text-3xl font-bold text-white mb-2">Alex Kumar</h2>
-              <p className="text-gray-300 mb-4">Grade 12 Science Student</p>
+              <div className="flex items-center justify-center md:justify-start space-x-2 mb-2">
+                {editingProfile ? (
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="bg-white/10 border-white/20 text-white text-2xl font-bold"
+                      placeholder="Enter your name"
+                    />
+                    <Button size="sm" onClick={handleSaveProfile} className="bg-green-500 hover:bg-green-600">
+                      <Save className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" onClick={handleCancelEdit} variant="ghost" className="text-gray-400">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <h2 className="text-3xl font-bold text-white">{profile?.full_name || 'User'}</h2>
+                    <Button size="sm" onClick={handleEditProfile} variant="ghost" className="text-gray-400 hover:text-white">
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+              <p className="text-gray-300 mb-4">{profile?.email}</p>
               
               <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-6">
-                <Badge className="bg-purple-500/20 text-purple-300 px-3 py-1">Level 47</Badge>
-                <Badge className="bg-yellow-500/20 text-yellow-300 px-3 py-1">Top 5%</Badge>
-                <Badge className="bg-green-500/20 text-green-300 px-3 py-1">15 Day Streak</Badge>
+                <Badge className="bg-purple-500/20 text-purple-300 px-3 py-1">
+                  Level {Math.floor(stats[0].value / 100) + 1}
+                </Badge>
+                <Badge className="bg-yellow-500/20 text-yellow-300 px-3 py-1">
+                  {achievements.filter(a => a.earned).length} Achievements
+                </Badge>
+                <Badge className="bg-green-500/20 text-green-300 px-3 py-1">
+                  {userProgress.filter(p => p.completed).length} Completed
+                </Badge>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -119,20 +259,28 @@ export const Profile = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {subjects.map((subject, index) => (
-                <div key={index} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-white font-semibold">{subject.name}</h4>
-                      <p className="text-gray-400 text-sm">Level {subject.level} • {subject.xp} XP</p>
+              {getSubjectProgress().length > 0 ? (
+                getSubjectProgress().map((subject, index) => (
+                  <div key={index} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-white font-semibold">{subject.name}</h4>
+                        <p className="text-gray-400 text-sm">{subject.courses} courses</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-purple-400 font-bold">{subject.progress}%</div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-purple-400 font-bold">{subject.progress}%</div>
-                    </div>
+                    <Progress value={subject.progress} className="h-2" />
                   </div>
-                  <Progress value={subject.progress} className="h-2" />
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <BookOpen className="h-12 w-12 text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-400">No courses started yet</p>
+                  <p className="text-gray-500 text-sm">Start learning to see your progress here</p>
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
 
@@ -141,15 +289,15 @@ export const Profile = () => {
             <CardHeader>
               <CardTitle className="text-white flex items-center">
                 <Target className="h-5 w-5 mr-2 text-green-400" />
-                This Week's Goals
+                Learning Goals
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                { goal: "Complete 5 Math quizzes", progress: 80, completed: 4, total: 5 },
-                { goal: "Attend 3 live classes", progress: 67, completed: 2, total: 3 },
-                { goal: "Study for 10 hours", progress: 90, completed: 9, total: 10 },
-                { goal: "Solve 20 practice problems", progress: 45, completed: 9, total: 20 }
+                { goal: "Complete 5 quizzes", progress: Math.min((quizResults.length / 5) * 100, 100), completed: quizResults.length, total: 5 },
+                { goal: "Start 3 courses", progress: Math.min((userProgress.length / 3) * 100, 100), completed: userProgress.length, total: 3 },
+                { goal: "Earn 500 XP points", progress: Math.min(((quizResults.length * 50) / 500) * 100, 100), completed: quizResults.length * 50, total: 500 },
+                { goal: "Get 80%+ average", progress: quizResults.length > 0 ? Math.min((quizResults.reduce((sum, r) => sum + (r.score / r.total_questions * 100), 0) / quizResults.length), 100) : 0, completed: quizResults.length > 0 ? Math.round(quizResults.reduce((sum, r) => sum + (r.score / r.total_questions * 100), 0) / quizResults.length) : 0, total: 80 }
               ].map((item, index) => (
                 <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -170,7 +318,7 @@ export const Profile = () => {
             <Card 
               key={index} 
               className={`bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all duration-300 ${
-                achievement.progress === 100 ? 'ring-2 ring-yellow-500/50' : ''
+                achievement.earned ? 'ring-2 ring-yellow-500/50' : ''
               }`}
             >
               <CardContent className="p-6 text-center">
@@ -181,7 +329,7 @@ export const Profile = () => {
                 <div className="text-purple-400 text-sm font-semibold">
                   {achievement.progress}% Complete
                 </div>
-                {achievement.progress === 100 && (
+                {achievement.earned && (
                   <Badge className="mt-2 bg-yellow-500/20 text-yellow-300">Earned!</Badge>
                 )}
               </CardContent>
@@ -200,20 +348,28 @@ export const Profile = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all duration-300"
-                >
-                  <div>
-                    <div className="text-white font-medium">
-                      <span className="text-purple-400">{activity.action}</span> {activity.item}
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all duration-300"
+                  >
+                    <div>
+                      <div className="text-white font-medium">
+                        <span className="text-purple-400">{activity.action}</span> {activity.item}
+                      </div>
+                      <div className="text-gray-400 text-sm">{activity.time}</div>
                     </div>
-                    <div className="text-gray-400 text-sm">{activity.time}</div>
+                    <Badge className="bg-green-500/20 text-green-300">{activity.xp}</Badge>
                   </div>
-                  <Badge className="bg-green-500/20 text-green-300">{activity.xp}</Badge>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 text-gray-500 mx-auto mb-2" />
+                  <p className="text-gray-400">No activity yet</p>
+                  <p className="text-gray-500 text-sm">Start learning to see your activity here</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>

@@ -1,7 +1,9 @@
 
 import { useState } from "react";
-import { Brain, Home, Video, Trophy, MessageCircle, User, Menu, X } from "lucide-react";
+import { Brain, Home, Video, Trophy, MessageCircle, User, Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 
 interface HeaderProps {
   activeSection: string;
@@ -10,6 +12,8 @@ interface HeaderProps {
 
 export const Header = ({ activeSection, setActiveSection }: HeaderProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { signOut } = useAuth();
+  const { profile } = useProfile();
 
   const navItems = [
     { id: "home", label: "Dashboard", icon: Home },
@@ -18,6 +22,10 @@ export const Header = ({ activeSection, setActiveSection }: HeaderProps) => {
     { id: "ai", label: "AI Tutor", icon: MessageCircle },
     { id: "profile", label: "Profile", icon: User },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <header className="bg-black/20 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
@@ -52,6 +60,22 @@ export const Header = ({ activeSection, setActiveSection }: HeaderProps) => {
               );
             })}
           </nav>
+
+          {/* User Menu */}
+          <div className="hidden md:flex items-center space-x-4">
+            <div className="text-right">
+              <p className="text-white text-sm font-medium">{profile?.full_name || 'User'}</p>
+              <p className="text-gray-400 text-xs">{profile?.email}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="text-gray-300 hover:text-white hover:bg-white/10"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
 
           {/* Mobile Menu Button */}
           <Button
@@ -89,6 +113,20 @@ export const Header = ({ activeSection, setActiveSection }: HeaderProps) => {
                   </Button>
                 );
               })}
+              <div className="border-t border-white/10 pt-4 mt-4">
+                <div className="px-4 mb-2">
+                  <p className="text-white text-sm font-medium">{profile?.full_name || 'User'}</p>
+                  <p className="text-gray-400 text-xs">{profile?.email}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  onClick={handleSignOut}
+                  className="w-full justify-start text-gray-300 hover:text-white hover:bg-white/10"
+                >
+                  <LogOut className="h-5 w-5 mr-3" />
+                  Sign Out
+                </Button>
+              </div>
             </nav>
           </div>
         )}

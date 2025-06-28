@@ -1,235 +1,302 @@
 
 import { useState } from "react";
-import { Trophy, Zap, Target, Clock, Star, Users } from "lucide-react";
+import { Trophy, Play, Clock, Target, Brain, CheckCircle, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+import { useQuizResults } from "@/hooks/useQuizResults";
+import { useToast } from "@/hooks/use-toast";
+
+interface Question {
+  id: number;
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation: string;
+}
+
+const sampleQuizzes = [
+  {
+    id: "math-basics",
+    title: "Mathematics Fundamentals",
+    description: "Test your basic math skills",
+    difficulty: "Easy",
+    duration: 15,
+    questions: [
+      {
+        id: 1,
+        question: "What is 15 + 27?",
+        options: ["40", "42", "44", "46"],
+        correctAnswer: 1,
+        explanation: "15 + 27 = 42"
+      },
+      {
+        id: 2,
+        question: "What is the square root of 64?",
+        options: ["6", "7", "8", "9"],
+        correctAnswer: 2,
+        explanation: "√64 = 8 because 8 × 8 = 64"
+      },
+      {
+        id: 3,
+        question: "What is 12 × 8?",
+        options: ["84", "92", "96", "104"],
+        correctAnswer: 2,
+        explanation: "12 × 8 = 96"
+      }
+    ]
+  },
+  {
+    id: "physics-motion",
+    title: "Physics: Motion & Forces",
+    description: "Understanding basic physics concepts",
+    difficulty: "Medium",
+    duration: 20,
+    questions: [
+      {
+        id: 1,
+        question: "What is Newton's first law of motion?",
+        options: [
+          "F = ma",
+          "An object at rest stays at rest unless acted upon by a force",
+          "For every action, there is an equal and opposite reaction",
+          "Energy cannot be created or destroyed"
+        ],
+        correctAnswer: 1,
+        explanation: "Newton's first law states that an object at rest stays at rest and an object in motion stays in motion unless acted upon by an external force."
+      },
+      {
+        id: 2,
+        question: "What is the unit of force?",
+        options: ["Joule", "Newton", "Watt", "Pascal"],
+        correctAnswer: 1,
+        explanation: "The Newton (N) is the unit of force in the International System of Units."
+      }
+    ]
+  }
+];
 
 export const QuizZone = () => {
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedQuiz, setSelectedQuiz] = useState<any>(null);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [quizStarted, setQuizStarted] = useState(false);
+  const { saveQuizResult } = useQuizResults();
+  const { toast } = useToast();
 
-  const categories = [
-    { id: "all", name: "All Subjects", icon: "🎯" },
-    { id: "math", name: "Mathematics", icon: "🧮" },
-    { id: "physics", name: "Physics", icon: "⚡" },
-    { id: "chemistry", name: "Chemistry", icon: "🧪" },
-    { id: "biology", name: "Biology", icon: "🧬" },
-  ];
+  const startQuiz = (quiz: any) => {
+    setSelectedQuiz(quiz);
+    setCurrentQuestion(0);
+    setSelectedAnswers([]);
+    setShowResults(false);
+    setQuizStarted(true);
+  };
 
-  const challenges = [
-    {
-      id: 1,
-      title: "Weekly Math Championship",
-      description: "Test your algebra and calculus skills",
-      participants: 1247,
-      timeLeft: "2d 14h",
-      difficulty: "Hard",
-      reward: "500 XP",
-      prize: "🏆 Gold Badge",
-      category: "math"
-    },
-    {
-      id: 2,
-      title: "Physics Lightning Round",
-      description: "Quick-fire questions on mechanics",
-      participants: 892,
-      timeLeft: "5h 23m",
-      difficulty: "Medium",
-      reward: "300 XP",
-      prize: "⚡ Speed Badge",
-      category: "physics"
-    },
-    {
-      id: 3,
-      title: "Chemistry Masters",
-      description: "Organic chemistry challenge",
-      participants: 654,
-      timeLeft: "1d 8h",
-      difficulty: "Expert",
-      reward: "750 XP",
-      prize: "💎 Master Badge",
-      category: "chemistry"
+  const selectAnswer = (answerIndex: number) => {
+    const newAnswers = [...selectedAnswers];
+    newAnswers[currentQuestion] = answerIndex;
+    setSelectedAnswers(newAnswers);
+  };
+
+  const nextQuestion = () => {
+    if (currentQuestion < selectedQuiz.questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    } else {
+      finishQuiz();
     }
-  ];
+  };
 
-  const quickQuizzes = [
-    { subject: "Trigonometry", questions: 15, time: "10 min", difficulty: "Easy", xp: 50 },
-    { subject: "Thermodynamics", questions: 20, time: "15 min", difficulty: "Medium", xp: 100 },
-    { subject: "Genetics", questions: 25, time: "20 min", difficulty: "Hard", xp: 150 },
-    { subject: "Calculus", questions: 30, time: "25 min", difficulty: "Expert", xp: 200 },
-  ];
+  const finishQuiz = async () => {
+    const score = selectedAnswers.reduce((total, answer, index) => {
+      return total + (answer === selectedQuiz.questions[index].correctAnswer ? 1 : 0);
+    }, 0);
 
-  const leaderboard = [
-    { rank: 1, name: "Alex Chen", points: 2840, badge: "🥇" },
-    { rank: 2, name: "Maria Garcia", points: 2730, badge: "🥈" },
-    { rank: 3, name: "John Smith", points: 2650, badge: "🥉" },
-    { rank: 4, name: "You", points: 2580, badge: "🎯" },
-    { rank: 5, name: "Sarah Wilson", points: 2490, badge: "⭐" },
-  ];
+    await saveQuizResult(selectedQuiz.title, score, selectedQuiz.questions.length);
+    setShowResults(true);
+
+    toast({
+      title: "Quiz Completed!",
+      description: `You scored ${score}/${selectedQuiz.questions.length} (${Math.round((score / selectedQuiz.questions.length) * 100)}%)`,
+    });
+  };
+
+  const resetQuiz = () => {
+    setSelectedQuiz(null);
+    setCurrentQuestion(0);
+    setSelectedAnswers([]);
+    setShowResults(false);
+    setQuizStarted(false);
+  };
+
+  if (quizStarted && selectedQuiz && !showResults) {
+    const question = selectedQuiz.questions[currentQuestion];
+    const progress = ((currentQuestion + 1) / selectedQuiz.questions.length) * 100;
+
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <Card className="bg-white/5 backdrop-blur-md border border-white/10">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white">{selectedQuiz.title}</CardTitle>
+              <Button variant="ghost" onClick={resetQuiz} className="text-gray-400 hover:text-white">
+                Exit Quiz
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm text-gray-400">
+                <span>Question {currentQuestion + 1} of {selectedQuiz.questions.length}</span>
+                <span>{Math.round(progress)}% Complete</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <h3 className="text-xl text-white font-semibold mb-4">{question.question}</h3>
+              <div className="space-y-3">
+                {question.options.map((option: string, index: number) => (
+                  <Button
+                    key={index}
+                    variant={selectedAnswers[currentQuestion] === index ? "default" : "outline"}
+                    onClick={() => selectAnswer(index)}
+                    className={`w-full text-left justify-start p-4 h-auto transition-all duration-300 ${
+                      selectedAnswers[currentQuestion] === index
+                        ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-500"
+                        : "bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-purple-400"
+                    }`}
+                  >
+                    <span className="mr-3 font-bold">{String.fromCharCode(65 + index)}.</span>
+                    {option}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex justify-end">
+              <Button
+                onClick={nextQuestion}
+                disabled={selectedAnswers[currentQuestion] === undefined}
+                className="bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+              >
+                {currentQuestion === selectedQuiz.questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (showResults && selectedQuiz) {
+    const score = selectedAnswers.reduce((total, answer, index) => {
+      return total + (answer === selectedQuiz.questions[index].correctAnswer ? 1 : 0);
+    }, 0);
+    const percentage = Math.round((score / selectedQuiz.questions.length) * 100);
+
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <Card className="bg-white/5 backdrop-blur-md border border-white/10">
+          <CardHeader className="text-center">
+            <Trophy className="h-16 w-16 text-yellow-400 mx-auto mb-4" />
+            <CardTitle className="text-2xl text-white">Quiz Complete!</CardTitle>
+            <div className="text-4xl font-bold text-purple-400 mt-2">{percentage}%</div>
+            <p className="text-gray-300">You scored {score} out of {selectedQuiz.questions.length} questions correctly</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {selectedQuiz.questions.map((question: Question, index: number) => {
+              const userAnswer = selectedAnswers[index];
+              const isCorrect = userAnswer === question.correctAnswer;
+              
+              return (
+                <div key={question.id} className="bg-white/5 rounded-lg p-4 border border-white/10">
+                  <div className="flex items-start space-x-3">
+                    {isCorrect ? (
+                      <CheckCircle className="h-5 w-5 text-green-400 mt-1 flex-shrink-0" />
+                    ) : (
+                      <XCircle className="h-5 w-5 text-red-400 mt-1 flex-shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <h4 className="text-white font-medium mb-2">{question.question}</h4>
+                      <p className="text-sm text-gray-400 mb-2">
+                        Your answer: <span className={isCorrect ? "text-green-400" : "text-red-400"}>
+                          {question.options[userAnswer] || "Not answered"}
+                        </span>
+                      </p>
+                      {!isCorrect && (
+                        <p className="text-sm text-gray-400 mb-2">
+                          Correct answer: <span className="text-green-400">{question.options[question.correctAnswer]}</span>
+                        </p>
+                      )}
+                      <p className="text-sm text-gray-300">{question.explanation}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            <div className="flex gap-4 pt-4">
+              <Button onClick={resetQuiz} className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                Take Another Quiz
+              </Button>
+              <Button onClick={() => startQuiz(selectedQuiz)} variant="outline" className="flex-1 border-white/20 text-white hover:bg-white/10">
+                Retake This Quiz
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="text-center">
-        <h2 className="text-4xl font-bold text-white mb-4">Quiz Zone</h2>
-        <p className="text-gray-300 text-lg">Challenge yourself and compete with peers</p>
+        <Trophy className="h-16 w-16 text-yellow-400 mx-auto mb-4" />
+        <h2 className="text-3xl font-bold text-white mb-2">Quiz Zone</h2>
+        <p className="text-gray-300">Test your knowledge and earn points!</p>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          { icon: Trophy, label: "Total Score", value: "2,580", color: "text-yellow-400" },
-          { icon: Zap, label: "Streak", value: "12 days", color: "text-purple-400" },
-          { icon: Target, label: "Accuracy", value: "89%", color: "text-green-400" },
-          { icon: Star, label: "Rank", value: "#4", color: "text-blue-400" },
-        ].map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="bg-white/5 backdrop-blur-md border border-white/10">
-              <CardContent className="p-6 text-center">
-                <Icon className={`h-8 w-8 mx-auto mb-3 ${stat.color}`} />
-                <div className={`text-2xl font-bold ${stat.color} mb-1`}>{stat.value}</div>
-                <div className="text-gray-400 text-sm">{stat.label}</div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Live Challenges */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="bg-white/5 backdrop-blur-md border border-white/10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {sampleQuizzes.map((quiz) => (
+          <Card key={quiz.id} className="bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all duration-300">
             <CardHeader>
-              <CardTitle className="text-white flex items-center">
-                <Trophy className="h-5 w-5 mr-2 text-yellow-400" />
-                Live Challenges
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {challenges.map((challenge) => (
-                <div 
-                  key={challenge.id}
-                  className="bg-gradient-to-r from-purple-600/10 to-pink-600/10 rounded-lg p-6 border border-purple-500/20 hover:border-purple-400/40 transition-all duration-300"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-white font-bold text-lg mb-2">{challenge.title}</h3>
-                      <p className="text-gray-400 mb-3">{challenge.description}</p>
-                      
-                      <div className="flex items-center space-x-4 text-sm">
-                        <div className="flex items-center text-gray-400">
-                          <Users className="h-4 w-4 mr-1" />
-                          {challenge.participants.toLocaleString()} joined
-                        </div>
-                        <div className="flex items-center text-gray-400">
-                          <Clock className="h-4 w-4 mr-1" />
-                          {challenge.timeLeft} left
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <Badge 
-                        className={`mb-2 ${
-                          challenge.difficulty === 'Easy' ? 'bg-green-500/20 text-green-300' :
-                          challenge.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                          challenge.difficulty === 'Hard' ? 'bg-red-500/20 text-red-300' :
-                          'bg-purple-500/20 text-purple-300'
-                        }`}
-                      >
-                        {challenge.difficulty}
-                      </Badge>
-                      <div className="text-purple-400 font-semibold">{challenge.reward}</div>
-                      <div className="text-yellow-400 text-sm">{challenge.prize}</div>
-                    </div>
-                  </div>
-                  
-                  <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold">
-                    Join Challenge
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Quick Quizzes */}
-          <Card className="bg-white/5 backdrop-blur-md border border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center">
-                <Zap className="h-5 w-5 mr-2 text-purple-400" />
-                Quick Quizzes
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <Brain className="h-8 w-8 text-purple-400" />
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  quiz.difficulty === 'Easy' ? 'bg-green-500/20 text-green-300' :
+                  quiz.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                  'bg-red-500/20 text-red-300'
+                }`}>
+                  {quiz.difficulty}
+                </span>
+              </div>
+              <CardTitle className="text-white">{quiz.title}</CardTitle>
+              <p className="text-gray-400 text-sm">{quiz.description}</p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {quickQuizzes.map((quiz, index) => (
-                  <div 
-                    key={index}
-                    className="bg-white/5 rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-all duration-300 cursor-pointer group"
-                  >
-                    <h4 className="text-white font-semibold mb-2 group-hover:text-purple-300 transition-colors">
-                      {quiz.subject}
-                    </h4>
-                    <div className="flex items-center justify-between text-sm text-gray-400 mb-3">
-                      <span>{quiz.questions} questions</span>
-                      <span>{quiz.time}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Badge 
-                        className={`text-xs ${
-                          quiz.difficulty === 'Easy' ? 'bg-green-500/20 text-green-300' :
-                          quiz.difficulty === 'Medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                          quiz.difficulty === 'Hard' ? 'bg-red-500/20 text-red-300' :
-                          'bg-purple-500/20 text-purple-300'
-                        }`}
-                      >
-                        {quiz.difficulty}
-                      </Badge>
-                      <span className="text-purple-400 font-semibold text-sm">+{quiz.xp} XP</span>
-                    </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm text-gray-400">
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-1" />
+                    {quiz.duration} min
                   </div>
-                ))}
+                  <div className="flex items-center">
+                    <Target className="h-4 w-4 mr-1" />
+                    {quiz.questions.length} questions
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => startQuiz(quiz)}
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Quiz
+                </Button>
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Leaderboard */}
-        <Card className="bg-white/5 backdrop-blur-md border border-white/10">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Trophy className="h-5 w-5 mr-2 text-yellow-400" />
-              Leaderboard
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {leaderboard.map((user) => (
-              <div 
-                key={user.rank}
-                className={`flex items-center justify-between p-3 rounded-lg transition-all duration-300 ${
-                  user.name === "You" 
-                    ? "bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30" 
-                    : "bg-white/5 hover:bg-white/10"
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">{user.badge}</span>
-                  <div>
-                    <div className={`font-semibold ${user.name === "You" ? "text-purple-300" : "text-white"}`}>
-                      {user.name}
-                    </div>
-                    <div className="text-gray-400 text-sm">#{user.rank}</div>
-                  </div>
-                </div>
-                <div className={`font-bold ${user.name === "You" ? "text-purple-300" : "text-gray-300"}`}>
-                  {user.points.toLocaleString()}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        ))}
       </div>
     </div>
   );
