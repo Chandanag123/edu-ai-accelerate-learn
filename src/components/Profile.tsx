@@ -124,11 +124,16 @@ export const Profile = () => {
     }));
   };
 
+  const totalXP = quizResults.length * 50;
+  const avgQuizScore = quizResults.length > 0 
+    ? Math.round(quizResults.reduce((sum, r) => sum + (r.score / r.total_questions * 100), 0) / quizResults.length)
+    : 0;
+
   const stats = [
-    { label: "Total XP", value: quizResults.length * 50, icon: TrendingUp, color: "text-purple-400" },
+    { label: "Total XP", value: totalXP, icon: TrendingUp, color: "text-purple-400" },
     { label: "Courses Started", value: userProgress.length, icon: BookOpen, color: "text-blue-400" },
     { label: "Quizzes Taken", value: quizResults.length, icon: Target, color: "text-green-400" },
-    { label: "Avg Quiz Score", value: quizResults.length > 0 ? `${Math.round(quizResults.reduce((sum, r) => sum + (r.score / r.total_questions * 100), 0) / quizResults.length)}%` : "0%", icon: Clock, color: "text-yellow-400" }
+    { label: "Avg Quiz Score", value: `${avgQuizScore}%`, icon: Clock, color: "text-yellow-400" }
   ];
 
   const recentActivity = [
@@ -196,7 +201,7 @@ export const Profile = () => {
               
               <div className="flex flex-wrap justify-center md:justify-start gap-4 mb-6">
                 <Badge className="bg-purple-500/20 text-purple-300 px-3 py-1">
-                  Level {Math.floor(stats[0].value / 100) + 1}
+                  Level {Math.floor(totalXP / 100) + 1}
                 </Badge>
                 <Badge className="bg-yellow-500/20 text-yellow-300 px-3 py-1">
                   {achievements.filter(a => a.earned).length} Achievements
@@ -296,8 +301,8 @@ export const Profile = () => {
               {[
                 { goal: "Complete 5 quizzes", progress: Math.min((quizResults.length / 5) * 100, 100), completed: quizResults.length, total: 5 },
                 { goal: "Start 3 courses", progress: Math.min((userProgress.length / 3) * 100, 100), completed: userProgress.length, total: 3 },
-                { goal: "Earn 500 XP points", progress: Math.min(((quizResults.length * 50) / 500) * 100, 100), completed: quizResults.length * 50, total: 500 },
-                { goal: "Get 80%+ average", progress: quizResults.length > 0 ? Math.min((quizResults.reduce((sum, r) => sum + (r.score / r.total_questions * 100), 0) / quizResults.length), 100) : 0, completed: quizResults.length > 0 ? Math.round(quizResults.reduce((sum, r) => sum + (r.score / r.total_questions * 100), 0) / quizResults.length) : 0, total: 80 }
+                { goal: "Earn 500 XP points", progress: Math.min((totalXP / 500) * 100, 100), completed: totalXP, total: 500 },
+                { goal: "Get 80%+ average", progress: avgQuizScore >= 80 ? 100 : Math.min(avgQuizScore, 100), completed: avgQuizScore, total: 80 }
               ].map((item, index) => (
                 <div key={index} className="space-y-2">
                   <div className="flex items-center justify-between">
