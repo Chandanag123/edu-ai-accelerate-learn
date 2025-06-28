@@ -1,12 +1,40 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState } from "react";
+import { Header } from "@/components/Header";
+import { Hero } from "@/components/Hero";
+import { Dashboard } from "@/components/Dashboard";
+import { LiveClasses } from "@/components/LiveClasses";
+import { QuizZone } from "@/components/QuizZone";
+import { AIAssistant } from "@/components/AIAssistant";
+import { Profile } from "@/components/Profile";
 
 const Index = () => {
+  const [activeSection, setActiveSection] = useState("home");
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case "home":
+        return <Dashboard />;
+      case "classes":
+        return <LiveClasses />;
+      case "quiz":
+        return <QuizZone />;
+      case "ai":
+        return <AIAssistant />;
+      case "profile":
+        return <Profile />;
+      default:
+        return <Dashboard />;
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <Header activeSection={activeSection} setActiveSection={setActiveSection} />
+      {activeSection === "home" && <Hero />}
+      <main className="container mx-auto px-4 py-8">
+        {renderContent()}
+      </main>
     </div>
   );
 };
